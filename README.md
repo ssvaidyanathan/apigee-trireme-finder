@@ -1,5 +1,5 @@
 # apigee-trireme-finder
-Script to find list of proxies that uses Trireme NodeJS
+Script to find list of proxies that uses Trireme based NodeJS code
 
 ## Pre-req
 - NodeJS 8.x or later
