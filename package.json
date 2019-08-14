@@ -1,7 +1,7 @@
 {
   "name": "apigee-trireme-finder",
   "version": "1.0.0",
-  "description": "Script to find list of proxies that uses Trireme NodeJS",
+  "description": "Script to find list of proxies that uses Trireme based NodeJS code",
   "main": "trireme_proxy_finder.js",
   "scripts": {
     "test": "node trireme_proxy_finder.js"
