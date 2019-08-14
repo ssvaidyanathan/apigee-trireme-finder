@@ -1,0 +1,16 @@
+{
+  "name": "apigee-trireme-finder",
+  "version": "1.0.0",
+  "description": "Script to find list of proxies that uses Trireme NodeJS",
+  "main": "trireme_proxy_finder.js",
+  "scripts": {
+    "test": "node trireme_proxy_finder.js"
+  },
+  "author": "Sai Saran Vaidyanathan (ssvaidyanathan)",
+  "license": "MIT",
+  "dependencies": {
+    "prompt": "^1.0.0",
+    "request": "^2.88.0",
+    "request-promise": "^4.2.4"
+  }
+}
