@@ -85,7 +85,7 @@ async function getEntities(config, entity){
 	let auth = Buffer.from(config.username+":"+config.password).toString('base64')
 	let options = {
 	    method: "GET",
-	    uri: "https://"+config.host+"/v1/o/"+config.org+"/"+entity,
+	    uri: "https://"+config.host+"/v1/organizations/"+config.org+"/"+entity,
 	    headers: {
         	"Authorization": "Basic "+auth
     	},
