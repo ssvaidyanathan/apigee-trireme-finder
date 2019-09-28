@@ -1,57 +1,107 @@
-const prompt = require("prompt");
 const colors = require("colors/safe");
+const inquirer = require("inquirer");
 const rp = require("request-promise");
 const util = require("util");
 
-let schema = {
-    properties: {
-      host: {
-        description: colors.yellow("Please provide the Apigee Management Host"),
-        message: colors.red("Apigee Edge Organization name cannot be empty!"),
-        required: true
-      },
-      org: {
-        description: colors.yellow("Please provide the Apigee Edge Organization name"),
-        message: colors.red("Apigee Edge Organization name cannot be empty!"),
-        required: true
-      },
-      username: {
-        description: colors.yellow("Please provide the Apigee Edge username"),
-        message: colors.red("Apigee Edge username cannot be empty!"),
-        required: true
-      },
-      password: {
-        description: colors.yellow("Please provide the Apigee Edge password"),
-        message: colors.red("Apigee Edge password cannot be empty!"),
-        hidden: true,  
-        replace: '*',
-        required: true
-      }
+let questions = [
+	{
+    type: 'input',
+    name: 'host',
+    message: colors.yellow("Please provide the Apigee Management Host: "),
+    validate: function(value) {
+      if(!value)
+        return colors.red("Apigee Management Host name cannot be empty!");
+      return true;
     }
-  };
- 
-//
-// Start the prompt
-//
-prompt.start();
+   },
+   {
+    type: 'input',
+    name: 'org',
+    message: colors.yellow("Please provide the Apigee Edge Organization name: "),
+    validate: function(value) {
+      if(!value)
+        return colors.red("Apigee Edge Organization name cannot be empty!");
+      return true;
+    }
+   },
+   {
+	  type: 'list',
+	  name: 'authType',
+	  message: colors.yellow("Which Auth type would you like to use?"),
+	  choices: ['Basic', 'OAuth'],
+	  validate: function(value) {
+      if(!value)
+        return colors.red("Please select an Auth type!");
+      return true;
+    }
+   }
+];
 
-prompt.get(schema, async function (err, config) {
-  getTriremeProxies(config);
+
+let basicAuthPrompt = [
+{
+    type: 'input',
+    name: 'username',
+    message: colors.yellow("Please provide the Apigee Edge username: "),
+    validate: function(value) {
+      if(!value)
+        return colors.red('Apigee Edge username cannot be empty!');
+      return true;
+    }
+   },
+   {
+    type: 'password',
+    name: 'password',
+    mask: '*',
+    message: colors.yellow("Please provide the Apigee Edge password: "),
+    validate: function(value) {
+      if(!value)
+        return colors.red('Apigee Edge password cannot be empty!')
+      return true;
+     } 
+    }
+];
+
+let oAuthPrompt = [
+{
+    type: 'input',
+    name: 'oauthToken',
+    message: colors.yellow("Please provide the Apigee OAuth token: "),
+    validate: function(value) {
+      if(!value)
+        return colors.red('Apigee OAuth token cannot be empty!');
+      return true;
+    }
+   }
+];
+
+inquirer.prompt(questions).then(async function(options) {
+  if(options.authType === "Basic"){
+  	inquirer.prompt(basicAuthPrompt).then(async function(authOptions) {
+  		await getTriremeProxies(options, authOptions);
+  	});
+  }else {
+  	inquirer.prompt(oAuthPrompt).then(async function(authOptions) {
+  		await getTriremeProxies(options, authOptions);
+  	});
+  }
 });
 
-
-async function getTriremeProxies(config){
+async function getTriremeProxies(config, auth){
 	let triremeProxies = [];
-	let apis = await getEntities(config, "apis");
+	console.log("Fetching all proxies in "+config.org+ " org...");
+	let apis = await getEntities(config, auth, "apis");
 	if (apis === null) {
 		console.log("API Proxies: NONE");
 		return;
 	}
+	console.log("Fetch complete");
+	console.log("Checking each proxy revision...");
 	for (api of apis){
-		let apiMetaData = await getEntities(config, "apis/"+api);
+		let apiMetaData = await getEntities(config, auth, "apis/"+api);
 		let revisions = apiMetaData.revision;
 		for (revision of revisions){
-			let revisionMetaData = await getEntities(config, "apis/"+api+"/revisions/"+revision);
+			let revisionMetaData = await getEntities(config, auth, "apis/"+api+"/revisions/"+revision);
 			//console.log("API: "+ api+ " Revision: "+ revision+ " resources: "+revisionMetaData.resources);
 			if(revisionMetaData.resources !== null && revisionMetaData.resources.length > 0){
 				for (var i = 0; i < revisionMetaData.resources.length; i++){
@@ -67,10 +117,10 @@ async function getTriremeProxies(config){
 			}
 		}
 	}
-	console.log("======== Trireme Proxies =========")
+	console.log("======== Trireme Proxies =========");
 	if (triremeProxies === null || triremeProxies.length === 0) {
 		console.log("NONE");
-		console.log ("==================================")
+		console.log ("==================================");
 		return;
 	}
 	for (proxy of triremeProxies){
@@ -80,14 +130,18 @@ async function getTriremeProxies(config){
 	}
 }
 
-async function getEntities(config, entity){
+async function getEntities(config, authConfig, entity){
 	//safeLog("Fetching "+entity+" from Apigee org: "+config.org);
-	let auth = Buffer.from(config.username+":"+config.password).toString('base64')
+	let auth = "";
+	if(config.authType === "Basic")
+		auth = "Basic "+Buffer.from(authConfig.username+":"+authConfig.password).toString('base64');
+	else
+		auth = "Bearer "+ authConfig.oauthToken
 	let options = {
 	    method: "GET",
 	    uri: "https://"+config.host+"/v1/organizations/"+config.org+"/"+entity,
 	    headers: {
-        	"Authorization": "Basic "+auth
+        	"Authorization": auth
     	},
 	    json: true
 	};
