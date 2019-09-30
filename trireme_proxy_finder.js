@@ -100,6 +100,7 @@ async function getTriremeProxies(config, auth){
 	for (api of apis){
 		let apiMetaData = await getEntities(config, auth, "apis/"+api);
 		let revisions = apiMetaData.revision;
+		let revArr = [];
 		for (revision of revisions){
 			let revisionMetaData = await getEntities(config, auth, "apis/"+api+"/revisions/"+revision);
 			//console.log("API: "+ api+ " Revision: "+ revision+ " resources: "+revisionMetaData.resources);
@@ -107,14 +108,21 @@ async function getTriremeProxies(config, auth){
 				for (var i = 0; i < revisionMetaData.resources.length; i++){
 					let pos = revisionMetaData.resources[i].search("node://");
 					if(pos > -1){
-						triremeProxies.push({
+						revArr.push(revision);
+						/*triremeProxies.push({
 							"api": api,
 							"revision": revision
-						});
+						});*/
 						break;
 					}
 				}
 			}
+		}
+		if(revArr !== null && revArr.length>0){
+			triremeProxies.push({
+				"api": api,
+				"revisions": revArr
+			});
 		}
 	}
 	console.log("======== Trireme Proxies =========");
@@ -125,7 +133,7 @@ async function getTriremeProxies(config, auth){
 	}
 	for (proxy of triremeProxies){
 		console.log("API: "+ proxy.api);
-		console.log("Revision: "+ proxy.revision);
+		console.log("Revisions: "+ proxy.revisions);
 		console.log("==================================");
 	}
 }
