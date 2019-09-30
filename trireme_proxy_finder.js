@@ -2,11 +2,13 @@ const colors = require("colors/safe");
 const inquirer = require("inquirer");
 const rp = require("request-promise");
 const util = require("util");
+const Spinner = require('cli-spinner').Spinner;
 
 let questions = [
 	{
     type: 'input',
     name: 'host',
+    default: "api.enterprise.apigee.com",
     message: colors.yellow("Please provide the Apigee Management Host: "),
     validate: function(value) {
       if(!value)
@@ -96,7 +98,9 @@ async function getTriremeProxies(config, auth){
 		return;
 	}
 	console.log("Fetch complete");
-	console.log("Checking each proxy revision...");
+	//console.log("Checking each proxy revision...");
+	let spinner = new Spinner('Checking each proxy revision... %s');
+	spinner.start();
 	for (api of apis){
 		let apiMetaData = await getEntities(config, auth, "apis/"+api);
 		let revisions = apiMetaData.revision;
@@ -125,7 +129,8 @@ async function getTriremeProxies(config, auth){
 			});
 		}
 	}
-	console.log("======== Trireme Proxies =========");
+	spinner.stop();
+	console.log("\n======== Trireme Proxies =========");
 	if (triremeProxies === null || triremeProxies.length === 0) {
 		console.log("NONE");
 		console.log ("==================================");
