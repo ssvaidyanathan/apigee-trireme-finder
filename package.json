@@ -9,7 +9,9 @@
   "author": "Sai Saran Vaidyanathan (ssvaidyanathan)",
   "license": "MIT",
   "dependencies": {
+    "colors": "^1.4.0",
     "inquirer": "^7.0.0",
+    "p-limit": "^2.2.1",
     "request": "^2.88.0",
     "request-promise": "^4.2.4"
   }
