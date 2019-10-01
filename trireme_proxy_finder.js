@@ -5,6 +5,18 @@ const util = require("util");
 const pLimit = require("p-limit");
 const fs = require("fs");
 
+//Progress bar implementation
+const _cliProgress = require("cli-progress");
+const b1 = new _cliProgress.SingleBar({
+  format:
+    "CLI Progress |" +
+    colors.cyan("{bar}") +
+    "| {percentage}% || {value}/{total} Chunks || Speed: {speed}",
+  barCompleteChar: "\u2588",
+  barIncompleteChar: "\u2591",
+  hideCursor: true
+});
+
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
 
 const retryRequest = async (
@@ -116,113 +128,103 @@ inquirer.prompt(questions).then(async function(options) {
 async function getTriremeProxies(config, auth) {
   let triremeProxies = [];
   console.log("Fetching all proxies in " + config.org + " org...");
-  let apis = await getEntities(config, auth, "apis");
+  try {
+    let apis = await retryRequest(() => getEntities(config, auth, "apis"));
+    b1.start(apis.length, 0, {
+      speed: "N/A"
+    });
 
-  console.log("Test is being run on " + apis.length + " proxies");
+    console.log("Test is being run on " + apis.length + " proxies");
 
-  if (apis === null) {
-    console.log("API Proxies: NONE");
-    return;
-  }
-  console.log("Fetch complete");
-  console.log("Checking each proxy revision...");
-  const limit = pLimit(100);
+    if (apis === null) {
+      console.log("API Proxies: NONE");
+      return;
+    }
+    console.log("Fetch complete");
+    console.log("Checking each proxy revision...");
+    const limit = pLimit(100);
 
-  const promises = apis.map(api =>
-    limit(() =>
-      retryRequest(async () => {
-        try {
-          let apiMetaData = await getEntities(config, auth, "apis/" + api);
-          let revisions = apiMetaData.revision;
-          for (revision of revisions) {
-            let revisionMetaData = await getEntities(
-              config,
-              auth,
-              "apis/" + api + "/revisions/" + revision
+    const promises = apis.map(async api => {
+      await limit(() =>
+        retryRequest(async () => {
+          try {
+            let apiMetaData = await retryRequest(() =>
+              getEntities(config, auth, "apis/" + api)
             );
-            //console.log("API: "+ api+ " Revision: "+ revision+ " resources: "+revisionMetaData.resources);
-            if (
-              revisionMetaData.resources !== null &&
-              revisionMetaData.resources.length > 0
-            ) {
-              for (var i = 0; i < revisionMetaData.resources.length; i++) {
-                let pos = revisionMetaData.resources[i].search("node://");
-                if (pos > -1) {
-                  triremeProxies.push({
-                    api: api,
-                    revision: revision
-                  });
-                  return `Api ${api} Revision ${revision} passed`;
-                  break;
+            let revisions = apiMetaData.revision;
+            for (revision of revisions) {
+              try {
+                let revisionMetaData = await retryRequest(() =>
+                  getEntities(
+                    config,
+                    auth,
+                    "apis/" + api + "/revisions/" + revision
+                  )
+                );
+                //console.log("API: "+ api+ " Revision: "+ revision+ " resources: "+revisionMetaData.resources);
+                if (
+                  revisionMetaData.resources !== null &&
+                  revisionMetaData.resources.length > 0
+                ) {
+                  for (var i = 0; i < revisionMetaData.resources.length; i++) {
+                    let pos = revisionMetaData.resources[i].search("node://");
+                    if (pos > -1) {
+                      triremeProxies.push({
+                        api: api,
+                        revision: revision
+                      });
+                      return `Api ${api} Revision ${revision} passed`;
+                      // break;
+                    }
+                  }
                 }
+              } catch (error) {
+                throw `Api ${api} Revision ${revision} has FAILED`;
               }
             }
+          } catch (error) {
+            throw error ? error : `Api ${api} has FAILED`;
           }
-        } catch (error) {
-          throw `Api ${api} has FAILED`;
-        }
-      })
-        .then(res => {
-          return res;
         })
-        .catch(err => {
-          return err ? err : `Api ${api} has FAILED`;
-        })
-    )
-  );
-  const result = await Promise.all(promises).then(res => {
-    return res;
-  });
-  con;
-  //   for (api of apis) {
-  //     let apiMetaData = await getEntities(config, auth, "apis/" + api);
-  //     let revisions = apiMetaData.revision;
+          .then(res => {
+            return res;
+          })
+          .catch(err => {
+            throw err ? err : `Api ${api} has FAILED`;
+          })
+      );
+      b1.increment();
+    });
+    const result = await Promise.all(promises).then(res => {
+      b1.stop();
+      console.log(res.filter(Boolean));
+      return res;
+    });
 
-  //     for (revision of revisions) {
-  //       let revisionMetaData = await getEntities(
-  //         config,
-  //         auth,
-  //         "apis/" + api + "/deployments"
-  //       );
-  //       //console.log("API: "+ api+ " Revision: "+ revision+ " resources: "+revisionMetaData.resources);
-  //       if (
-  //         revisionMetaData.resources !== null &&
-  //         revisionMetaData.resources.length > 0
-  //       ) {
-  //         for (var i = 0; i < revisionMetaData.resources.length; i++) {
-  //           let pos = revisionMetaData.resources[i].search("node://");
-  //           if (pos > -1) {
-  //             triremeProxies.push({
-  //               api: api,
-  //               revision: revision
-  //             });
-  //             break;
-  //           }
-  //         }
-  //       }
-  //     }
-  //   }
-  console.log("======== Trireme Proxies =========");
-  if (triremeProxies === null || triremeProxies.length === 0) {
-    console.log("NONE");
-    console.log("==================================");
-    return;
-  }
-  for (proxy of triremeProxies) {
-    console.log("API: " + proxy.api);
-    console.log("Revision: " + proxy.revision);
-    console.log("==================================");
-  }
-  var jsonObj = JSON.stringify(triremeProxies);
-
-  fs.writeFile("output.json", jsonObj, "utf8", function(err) {
-    if (err) {
-      console.log("An error occured while writing JSON Object to File.");
-      return console.log(err);
+    console.log("======== Trireme Proxies =========");
+    if (triremeProxies === null || triremeProxies.length === 0) {
+      console.log("NONE");
+      console.log("==================================");
+      return;
     }
+    for (proxy of triremeProxies) {
+      console.log("API: " + proxy.api);
+      console.log("Revision: " + proxy.revision);
+      console.log("==================================");
+    }
+    var jsonObj = JSON.stringify(triremeProxies);
 
-    console.log("JSON file has been saved.");
-  });
+    fs.writeFile("output.json", jsonObj, "utf8", function(err) {
+      if (err) {
+        console.log("An error occured while writing JSON Object to File.");
+        return console.log(err);
+      }
+
+      console.log("JSON file has been saved.");
+    });
+  } catch (error) {
+    throw error;
+  }
 }
 
 async function getEntities(config, authConfig, entity) {
@@ -253,8 +255,7 @@ async function getEntities(config, authConfig, entity) {
     let parsedBody = await rp(options);
     return parsedBody;
   } catch (err) {
-    safeLog(err);
-    return null;
+    throw safeLog(err);
   }
 }
 

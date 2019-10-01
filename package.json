@@ -9,6 +9,7 @@
   "author": "Sai Saran Vaidyanathan (ssvaidyanathan)",
   "license": "MIT",
   "dependencies": {
+    "cli-progress": "^3.3.0",
     "colors": "^1.4.0",
     "inquirer": "^7.0.0",
     "p-limit": "^2.2.1",
