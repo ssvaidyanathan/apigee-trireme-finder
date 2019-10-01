@@ -11,7 +11,7 @@ const b1 = new _cliProgress.SingleBar({
   format:
     "CLI Progress |" +
     colors.cyan("{bar}") +
-    "| {percentage}% || {value}/{total} Chunks || Speed: {speed}",
+    "| {percentage}% || {value}/{total} {Proxies} || ETA: {eta}s",
   barCompleteChar: "\u2588",
   barIncompleteChar: "\u2591",
   hideCursor: true
@@ -21,8 +21,8 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
 
 const retryRequest = async (
   asyncFunc = () => {},
-  count = 3,
-  timeOut = 1000
+  count = 20,
+  timeOut = 3000
 ) => {
   const sleep = milliseconds =>
     new Promise(resolve => setTimeout(resolve, milliseconds));
@@ -144,8 +144,8 @@ async function getTriremeProxies(config, auth) {
     console.log("Checking each proxy revision...");
     const limit = pLimit(100);
 
-    const promises = apis.map(async api => {
-      await limit(() =>
+    const promises = apis.map(api => {
+      const apiRes = limit(() =>
         retryRequest(async () => {
           try {
             let apiMetaData = await retryRequest(() =>
@@ -173,8 +173,9 @@ async function getTriremeProxies(config, auth) {
                         api: api,
                         revision: revision
                       });
-                      return `Api ${api} Revision ${revision} passed`;
-                      // break;
+
+                      break;
+                      //   return `Api ${api} Revision ${revision} passed`;
                     }
                   }
                 }
@@ -182,18 +183,24 @@ async function getTriremeProxies(config, auth) {
                 throw `Api ${api} Revision ${revision} has FAILED`;
               }
             }
+
+            return `Api ${api}`;
           } catch (error) {
+            // b1.increment();
             throw error ? error : `Api ${api} has FAILED`;
           }
         })
           .then(res => {
+            b1.increment();
             return res;
           })
           .catch(err => {
+            b1.increment();
             throw err ? err : `Api ${api} has FAILED`;
           })
-      );
-      b1.increment();
+      ).catch(err => err);
+
+      return apiRes;
     });
     const result = await Promise.all(promises).then(res => {
       b1.stop();
@@ -262,5 +269,5 @@ async function getEntities(config, authConfig, entity) {
 // strip Basic auth from logging
 function safeLog(obj) {
   let str = util.inspect(obj);
-  console.log(str.replace(/Basic [+/A-Za-z0-9]+/g, "Basic ******"));
+  return str.replace(/Basic [+/A-Za-z0-9]+/g, "Basic ******");
 }
