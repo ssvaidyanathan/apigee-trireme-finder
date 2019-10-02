@@ -9,7 +9,7 @@ const fs = require("fs");
 const _cliProgress = require("cli-progress");
 const b1 = new _cliProgress.SingleBar({
   format:
-    "CLI Progress |" +
+    "Progress |" +
     colors.cyan("{bar}") +
     "| {percentage}% || {value}/{total} Proxies || ETA: {eta}s",
   barCompleteChar: "\u2588",
