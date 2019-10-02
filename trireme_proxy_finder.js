@@ -11,7 +11,7 @@ const b1 = new _cliProgress.SingleBar({
   format:
     "CLI Progress |" +
     colors.cyan("{bar}") +
-    "| {percentage}% || {value}/{total} {Proxies} || ETA: {eta}s",
+    "| {percentage}% || {value}/{total} Proxies || ETA: {eta}s",
   barCompleteChar: "\u2588",
   barIncompleteChar: "\u2591",
   hideCursor: true
@@ -19,6 +19,12 @@ const b1 = new _cliProgress.SingleBar({
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
 
+/**
+ * retryRequest, a wrapper for async functions allowing retries with timeouts between attempts
+ * @param {async ()=>} asyncFunc
+ * @param {number of attempts} count
+ * @param {how long between attempts} timeOut
+ */
 const retryRequest = async (
   asyncFunc = () => {},
   count = 20,
@@ -130,9 +136,6 @@ async function getTriremeProxies(config, auth) {
   console.log("Fetching all proxies in " + config.org + " org...");
   try {
     let apis = await retryRequest(() => getEntities(config, auth, "apis"));
-    b1.start(apis.length, 0, {
-      speed: "N/A"
-    });
 
     console.log("Test is being run on " + apis.length + " proxies");
 
@@ -142,15 +145,19 @@ async function getTriremeProxies(config, auth) {
     }
     console.log("Fetch complete");
     console.log("Checking each proxy revision...");
+    b1.start(apis.length, 0, {});
+    // Limit of queries allowed to run concurrently
     const limit = pLimit(100);
-
+    // Promise array of all the proxy queries
     const promises = apis.map(api => {
       const apiRes = limit(() =>
         retryRequest(async () => {
           try {
             let apiMetaData = await retryRequest(() =>
               getEntities(config, auth, "apis/" + api)
-            );
+            ).catch(err => {
+              throw `Api ${api} FAILED\n` + err;
+            });
             let revisions = apiMetaData.revision;
             for (revision of revisions) {
               try {
@@ -160,7 +167,9 @@ async function getTriremeProxies(config, auth) {
                     auth,
                     "apis/" + api + "/revisions/" + revision
                   )
-                );
+                ).catch(err => {
+                  throw `Api ${api} Revision ${revision} has FAILED\n` + err;
+                });
                 //console.log("API: "+ api+ " Revision: "+ revision+ " resources: "+revisionMetaData.resources);
                 if (
                   revisionMetaData.resources !== null &&
@@ -184,7 +193,8 @@ async function getTriremeProxies(config, auth) {
               }
             }
 
-            return `Api ${api}`;
+            // return `Api ${api} passed`;
+            return null;
           } catch (error) {
             // b1.increment();
             throw error ? error : `Api ${api} has FAILED`;
@@ -202,10 +212,16 @@ async function getTriremeProxies(config, auth) {
 
       return apiRes;
     });
-    const result = await Promise.all(promises).then(res => {
+    await Promise.all(promises).then(res => {
       b1.stop();
-      console.log(res.filter(Boolean));
-      return res;
+
+      // DEBUG enable this console log to see proxies that failed the check
+      const failures = res.filter(Boolean);
+      if (failures) {
+        console.log("Failed Proixes\n" + failures);
+      } else {
+        console.log("All proxies were checked without fail");
+      }
     });
 
     console.log("======== Trireme Proxies =========");
@@ -221,7 +237,7 @@ async function getTriremeProxies(config, auth) {
     }
     var jsonObj = JSON.stringify(triremeProxies);
 
-    fs.writeFile("output.json", jsonObj, "utf8", function(err) {
+    fs.writeFile("output.json", jsonObj, "utf8", err => {
       if (err) {
         console.log("An error occured while writing JSON Object to File.");
         return console.log(err);
