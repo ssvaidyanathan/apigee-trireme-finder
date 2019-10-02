@@ -27,8 +27,8 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
  */
 const retryRequest = async (
   asyncFunc = () => {},
-  count = 20,
-  timeOut = 3000
+  count = 5,
+  timeOut = 1000
 ) => {
   const sleep = milliseconds =>
     new Promise(resolve => setTimeout(resolve, milliseconds));
@@ -132,7 +132,7 @@ inquirer.prompt(questions).then(async function(options) {
 });
 
 async function getTriremeProxies(config, auth) {
-  let triremeProxies = [];
+  //   let triremeProxies = [];
   console.log("Fetching all proxies in " + config.org + " org...");
   try {
     let apis = await retryRequest(() => getEntities(config, auth, "apis"));
@@ -178,11 +178,14 @@ async function getTriremeProxies(config, auth) {
                   for (var i = 0; i < revisionMetaData.resources.length; i++) {
                     let pos = revisionMetaData.resources[i].search("node://");
                     if (pos > -1) {
-                      triremeProxies.push({
+                      //   triremeProxies.push({
+                      //     api: api,
+                      //     revision: revision
+                      //   });
+                      return {
                         api: api,
                         revision: revision
-                      });
-                      break;
+                      };
                       //   return `Api ${api} Revision ${revision} passed`;
                     }
                   }
@@ -193,7 +196,7 @@ async function getTriremeProxies(config, auth) {
             }
 
             // return `Api ${api} passed`;
-            return true;
+            return "Passed";
           } catch (error) {
             // b1.increment();
             throw error ? error : `Api ${api} has FAILED`;
@@ -215,34 +218,39 @@ async function getTriremeProxies(config, auth) {
       b1.stop();
 
       // DEBUG enable this console log to see proxies that failed the check
-      const failures = res.filter(Boolean);
-      if (failures) {
-        console.log("Failed Proixes\n" + failures);
+      const triremeProxies = res.filter(str => {
+        return str != "Passed";
+      });
+      failures = triremeProxies.filter(proxy => {
+        return proxy == proxy.api;
+      });
+      if (failures.length) {
+        console.log(failures);
       } else {
         console.log("All proxies were checked without fail");
       }
-    });
 
-    console.log("======== Trireme Proxies =========");
-    if (triremeProxies === null || triremeProxies.length === 0) {
-      console.log("NONE");
-      console.log("==================================");
-      return;
-    }
-    for (proxy of triremeProxies) {
-      console.log("API: " + proxy.api);
-      console.log("Revision: " + proxy.revision);
-      console.log("==================================");
-    }
-    var jsonObj = JSON.stringify(triremeProxies);
-
-    fs.writeFile("output.json", jsonObj, "utf8", err => {
-      if (err) {
-        console.log("An error occured while writing JSON Object to File.");
-        return console.log(err);
+      console.log("======== Trireme Proxies =========");
+      if (triremeProxies === null || triremeProxies.length === 0) {
+        console.log("NONE");
+        console.log("==================================");
+        return;
       }
+      for (proxy of triremeProxies) {
+        console.log("API: " + proxy.api);
+        console.log("Revision: " + proxy.revision);
+        console.log("==================================");
+      }
+      var jsonObj = JSON.stringify(triremeProxies);
 
-      console.log("JSON file has been saved.");
+      fs.writeFile("output.json", jsonObj, "utf8", err => {
+        if (err) {
+          console.log("An error occured while writing JSON Object to File.");
+          return console.log(err);
+        }
+
+        console.log("JSON file has been saved.");
+      });
     });
   } catch (error) {
     throw error;
