@@ -182,7 +182,6 @@ async function getTriremeProxies(config, auth) {
                         api: api,
                         revision: revision
                       });
-
                       break;
                       //   return `Api ${api} Revision ${revision} passed`;
                     }
@@ -194,7 +193,7 @@ async function getTriremeProxies(config, auth) {
             }
 
             // return `Api ${api} passed`;
-            return null;
+            return true;
           } catch (error) {
             // b1.increment();
             throw error ? error : `Api ${api} has FAILED`;
