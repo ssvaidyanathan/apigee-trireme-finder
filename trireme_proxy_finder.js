@@ -110,8 +110,9 @@ async function getTriremeProxies(config, auth){
 			//console.log("API: "+ api+ " Revision: "+ revision+ " resources: "+revisionMetaData.resources);
 			if(revisionMetaData.resources !== null && revisionMetaData.resources.length > 0){
 				for (var i = 0; i < revisionMetaData.resources.length; i++){
-					let pos = revisionMetaData.resources[i].search("node://");
-					if(pos > -1){
+					//let pos = revisionMetaData.resources[i].search("node://");
+					if(revisionMetaData.resources[i].startsWith("node://") && revisionMetaData.resources[i].endsWith(".js")){
+					//if(pos > -1){
 						revArr.push(revision);
 						/*triremeProxies.push({
 							"api": api,
