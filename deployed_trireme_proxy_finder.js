@@ -104,7 +104,6 @@ async function getTriremeProxies(config, auth){
 	let spinner = new Spinner('Fetching all deployed proxies in '+config.org+ ' org in the '+ config.env +' env... %s');
 	spinner.start();
 	let apis = await getEntities(config, auth, "environments/"+config.env+"/deployments");
-	//let apis = await getEntities(config, auth, "apis");
 	if (apis.aPIProxy!=null && apis.aPIProxy.length==0) {
 		console.log("API Proxies Deployed: NONE");
 		return;
@@ -112,12 +111,10 @@ async function getTriremeProxies(config, auth){
 	spinner.stop();
 	console.log("");
 	console.log("Fetch complete");
-	//console.log("Checking each proxy revision...");
 	spinner = new Spinner('Checking each proxy revision... %s');
 	console.log("");
 	spinner.start();
 	for(api of apis.aPIProxy){
-		//console.log("API: "+api.name + " Revision: "+api.revision[0].name);
 		let revisionMetaData = await getEntities(config, auth, "apis/"+api.name+"/revisions/"+api.revision[0].name);
 		if(revisionMetaData.resources !== null && revisionMetaData.resources.length > 0){
 			for (var i = 0; i < revisionMetaData.resources.length; i++){
@@ -148,7 +145,6 @@ async function getTriremeProxies(config, auth){
 }
 
 async function getEntities(config, authConfig, entity){
-	//safeLog("Fetching "+entity+" from Apigee org: "+config.org);
 	let auth = "";
 	if(config.authType === "Basic")
 		auth = "Basic "+Buffer.from(authConfig.username+":"+authConfig.password).toString('base64');
