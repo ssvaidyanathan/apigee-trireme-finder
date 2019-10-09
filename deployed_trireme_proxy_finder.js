@@ -119,7 +119,6 @@ async function getTriremeProxies(config, auth){
 		if(revisionMetaData.resources !== null && revisionMetaData.resources.length > 0){
 			for (var i = 0; i < revisionMetaData.resources.length; i++){
 				if(revisionMetaData.resources[i].startsWith("node://") && revisionMetaData.resources[i].endsWith(".js")){
-					//revArr.push(api.revision[0].name);
 					triremeProxies.push({
 						"api": api.name,
 						"revision": api.revision[0].name
