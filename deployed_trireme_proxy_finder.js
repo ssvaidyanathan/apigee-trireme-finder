@@ -115,7 +115,20 @@ async function getTriremeProxies(config, auth){
 	console.log("");
 	spinner.start();
 	for(api of apis.aPIProxy){
-		let revisionMetaData = await getEntities(config, auth, "apis/"+api.name+"/revisions/"+api.revision[0].name);
+    let targets = await getEntities(config, auth, "apis/"+api.name+"/revisions/"+api.revision[0].name+"/targets");
+    for(target of targets){
+      let targetMetadata = await getEntities(config, auth, "apis/"+api.name+"/revisions/"+api.revision[0].name+"/targets/"+target);
+      if(targetMetadata !=null && targetMetadata.connection!=null && targetMetadata.connection.connectionType == "scriptConnection"){
+        triremeProxies.push({
+            "api": api.name,
+            "revision": api.revision[0].name,
+            "target": target
+          }); 
+          break;
+      }
+    }
+
+		/*let revisionMetaData = await getEntities(config, auth, "apis/"+api.name+"/revisions/"+api.revision[0].name);
 		if(revisionMetaData.resources !== null && revisionMetaData.resources.length > 0){
 			for (var i = 0; i < revisionMetaData.resources.length; i++){
 				if(revisionMetaData.resources[i].startsWith("node://") && revisionMetaData.resources[i].endsWith(".js")){
@@ -126,7 +139,7 @@ async function getTriremeProxies(config, auth){
 					break;
 				}
 			}
-		}
+		}*/
 	}
 	spinner.stop();
 	console.log("\n======== Trireme Proxies =========");
@@ -138,6 +151,7 @@ async function getTriremeProxies(config, auth){
 	for (proxy of triremeProxies){
 		console.log("API: "+ proxy.api);
 		console.log("Revision: "+ proxy.revision);
+    	console.log("Target: "+ proxy.target);
 		console.log("Environment: "+ config.env);
 		console.log("==================================");
 	}
