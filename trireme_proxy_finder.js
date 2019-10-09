@@ -98,7 +98,6 @@ async function getTriremeProxies(config, auth){
 		return;
 	}
 	console.log("Fetch complete");
-	//console.log("Checking each proxy revision...");
 	let spinner = new Spinner('Checking each proxy revision... %s');
 	spinner.start();
 	for (api of apis){
@@ -107,17 +106,10 @@ async function getTriremeProxies(config, auth){
 		let revArr = [];
 		for (revision of revisions){
 			let revisionMetaData = await getEntities(config, auth, "apis/"+api+"/revisions/"+revision);
-			//console.log("API: "+ api+ " Revision: "+ revision+ " resources: "+revisionMetaData.resources);
 			if(revisionMetaData.resources !== null && revisionMetaData.resources.length > 0){
 				for (var i = 0; i < revisionMetaData.resources.length; i++){
-					//let pos = revisionMetaData.resources[i].search("node://");
 					if(revisionMetaData.resources[i].startsWith("node://") && revisionMetaData.resources[i].endsWith(".js")){
-					//if(pos > -1){
 						revArr.push(revision);
-						/*triremeProxies.push({
-							"api": api,
-							"revision": revision
-						});*/
 						break;
 					}
 				}
@@ -145,7 +137,6 @@ async function getTriremeProxies(config, auth){
 }
 
 async function getEntities(config, authConfig, entity){
-	//safeLog("Fetching "+entity+" from Apigee org: "+config.org);
 	let auth = "";
 	if(config.authType === "Basic")
 		auth = "Basic "+Buffer.from(authConfig.username+":"+authConfig.password).toString('base64');
