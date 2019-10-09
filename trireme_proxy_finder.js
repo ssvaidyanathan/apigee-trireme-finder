@@ -105,7 +105,16 @@ async function getTriremeProxies(config, auth){
 		let revisions = apiMetaData.revision;
 		let revArr = [];
 		for (revision of revisions){
-			let revisionMetaData = await getEntities(config, auth, "apis/"+api+"/revisions/"+revision);
+			let targets = await getEntities(config, auth, "apis/"+api+"/revisions/"+revision+"/targets");
+			for(target of targets){
+				let targetMetadata = await getEntities(config, auth, "apis/"+api+"/revisions/"+revision+"/targets/"+target);
+			    if(targetMetadata !=null && targetMetadata.connection!=null && targetMetadata.connection.connectionType == "scriptConnection"){
+			        revArr.push(revision);
+			        break;
+			    }
+			}
+
+			/*let revisionMetaData = await getEntities(config, auth, "apis/"+api+"/revisions/"+revision);
 			if(revisionMetaData.resources !== null && revisionMetaData.resources.length > 0){
 				for (var i = 0; i < revisionMetaData.resources.length; i++){
 					if(revisionMetaData.resources[i].startsWith("node://") && revisionMetaData.resources[i].endsWith(".js")){
@@ -113,7 +122,7 @@ async function getTriremeProxies(config, auth){
 						break;
 					}
 				}
-			}
+			}*/
 		}
 		if(revArr !== null && revArr.length>0){
 			triremeProxies.push({
