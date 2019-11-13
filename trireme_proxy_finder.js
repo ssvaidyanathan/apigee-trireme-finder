@@ -74,6 +74,16 @@ let questions = [
     }
   },
   {
+    type: "input",
+    name: "env",
+    message: colors.yellow("Please provide the Apigee Edge Environment name: "),
+    validate: function(value) {
+      if (!value)
+        return colors.red("Apigee Edge Environment name cannot be empty!");
+      return true;
+    }
+  },
+  {
     type: "list",
     name: "authType",
     message: colors.yellow("Which Auth type would you like to use?"),
@@ -135,9 +145,11 @@ async function getTriremeProxies(config, auth) {
   //   let triremeProxies = [];
   console.log("Fetching all proxies in " + config.org + " org...");
   try {
-    let apis = await retryRequest(() => getEntities(config, auth, "apis"));
+    let apis = await retryRequest(() =>
+      getEntities(config, auth, "environments/" + config.env + "/deployments")
+    );
 
-    console.log("Test is being run on " + apis.length + " proxies");
+    console.log("Test is being run on " + apis.aPIProxy.length + " proxies");
 
     if (apis === null) {
       console.log("API Proxies: NONE");
@@ -145,61 +157,43 @@ async function getTriremeProxies(config, auth) {
     }
     console.log("Fetch complete");
     console.log("Checking each proxy revision...");
-    b1.start(apis.length, 0, {});
+    b1.start(apis.aPIProxy.length, 0, {});
     // Limit of queries allowed to run concurrently
     const limit = pLimit(100);
     // Promise array of all the proxy queries
-    const promises = apis.map(api => {
-      const apiRes = limit(() =>
+    const promises = apis.aPIProxy.map(api =>
+      limit(() =>
         retryRequest(async () => {
           try {
-            let apiMetaData = await retryRequest(() =>
-              getEntities(config, auth, "apis/" + api)
-            ).catch(err => {
-              throw `Api ${api} FAILED\n` + err;
-            });
-            let revisions = apiMetaData.revision;
-            for (revision of revisions) {
-              try {
-                let revisionMetaData = await retryRequest(() =>
-                  getEntities(
-                    config,
-                    auth,
-                    "apis/" + api + "/revisions/" + revision
-                  )
-                ).catch(err => {
-                  throw `Api ${api} Revision ${revision} has FAILED\n` + err;
-                });
-                //console.log("API: "+ api+ " Revision: "+ revision+ " resources: "+revisionMetaData.resources);
+            //console.log("API: "+api.name + " Revision: "+api.revision[0].name);
+            let revisionMetaData = await getEntities(
+              config,
+              auth,
+              "apis/" + api.name + "/revisions/" + api.revision[0].name
+            );
+            if (
+              revisionMetaData.resources !== null &&
+              revisionMetaData.resources.length > 0
+            ) {
+              for (var i = 0; i < revisionMetaData.resources.length; i++) {
                 if (
-                  revisionMetaData.resources !== null &&
-                  revisionMetaData.resources.length > 0
+                  revisionMetaData.resources[i].startsWith("node://") &&
+                  revisionMetaData.resources[i].endsWith(".js")
                 ) {
-                  for (var i = 0; i < revisionMetaData.resources.length; i++) {
-                    let pos = revisionMetaData.resources[i].search("node://");
-                    if (pos > -1) {
-                      //   triremeProxies.push({
-                      //     api: api,
-                      //     revision: revision
-                      //   });
-                      return {
-                        api: api,
-                        revision: revision
-                      };
-                      //   return `Api ${api} Revision ${revision} passed`;
-                    }
-                  }
+                  //revArr.push(api.revision[0].name);
+                  return {
+                    api: api.name,
+                    revision: api.revision[0].name
+                  };
                 }
-              } catch (error) {
-                throw `Api ${api} Revision ${revision} has FAILED`;
               }
             }
-
-            // return `Api ${api} passed`;
             return "Passed";
           } catch (error) {
             // b1.increment();
-            throw error ? error : `Api ${api} has FAILED`;
+            throw error
+              ? error
+              : `Api ${api} Revision ${revision} has FAILED\n${error}`;
           }
         })
           .then(res => {
@@ -210,10 +204,9 @@ async function getTriremeProxies(config, auth) {
             b1.increment();
             throw err ? err : `Api ${api} has FAILED`;
           })
-      ).catch(err => err);
+      ).catch(err => err)
+    );
 
-      return apiRes;
-    });
     await Promise.all(promises).then(res => {
       b1.stop();
 
@@ -235,22 +228,25 @@ async function getTriremeProxies(config, auth) {
         console.log("NONE");
         console.log("==================================");
         return;
-      }
-      for (proxy of triremeProxies) {
-        console.log("API: " + proxy.api);
-        console.log("Revision: " + proxy.revision);
-        console.log("==================================");
-      }
-      var jsonObj = JSON.stringify(triremeProxies);
+      } else {
+        triremeProxies.map(proxy => {
+          console.log("API: " + proxy.api);
+          console.log("Revision: " + proxy.revision);
+          console.log("Environment: " + config.env);
+          console.log("==================================");
+        });
 
-      fs.writeFile("output.json", jsonObj, "utf8", err => {
-        if (err) {
-          console.log("An error occured while writing JSON Object to File.");
-          return console.log(err);
-        }
+        var jsonObj = JSON.stringify(triremeProxies);
 
-        console.log("JSON file has been saved.");
-      });
+        fs.writeFile("output.json", jsonObj, "utf8", err => {
+          if (err) {
+            console.log("An error occured while writing JSON Object to File.");
+            return console.log(err);
+          }
+
+          console.log("JSON file has been saved.");
+        });
+      }
     });
   } catch (error) {
     throw error;
