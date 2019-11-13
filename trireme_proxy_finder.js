@@ -21,9 +21,9 @@ process.env.NODE_TLS_REJECT_UNAUTHORIZED = 0;
 
 /**
  * retryRequest, a wrapper for async functions allowing retries with timeouts between attempts
- * @param {async ()=>} asyncFunc
- * @param {number of attempts} count
- * @param {how long between attempts} timeOut
+ * @param asyncFunc async function to retry
+ * @param count of attempts allowed
+ * @param timeOut how long between attempts
  */
 const retryRequest = async (
   asyncFunc = () => {},
@@ -165,7 +165,6 @@ async function getTriremeProxies(config, auth) {
       limit(() =>
         retryRequest(async () => {
           try {
-            //console.log("API: "+api.name + " Revision: "+api.revision[0].name);
             let revisionMetaData = await getEntities(
               config,
               auth,
@@ -210,10 +209,11 @@ async function getTriremeProxies(config, auth) {
     await Promise.all(promises).then(res => {
       b1.stop();
 
-      // DEBUG enable this console log to see proxies that failed the check
       const triremeProxies = res.filter(str => {
         return str != "Passed";
       });
+
+      // DEBUG enable this console log to see proxies that failed the check
       failures = triremeProxies.filter(proxy => {
         return proxy == proxy.api;
       });
