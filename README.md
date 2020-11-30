@@ -1,5 +1,5 @@
 # Fork Information
-Features updated async logic to great speed up process
+Features updated async logic to greatly speed up process
 # apigee-trireme-finder
 Script to find list of proxies that uses Trireme based NodeJS code
 
